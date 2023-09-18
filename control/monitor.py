@@ -58,7 +58,7 @@ def analyze_data():
     print(len(aggregation), "dispositivos revisados")
     print(alerts, "alertas enviadas")
 
-def analyze_data_grupo_eight_couple_two():
+def analyze_data_grupo_eight_couple_two_lux():
     # Consulta todos los datos de la última hora, los agrupa por estación y variable
     # Compara el promedio con los valores límite que están en la base de datos para esa variable.
     # Si el promedio se excede de los límites, se envia un mensaje de alerta.
@@ -66,7 +66,8 @@ def analyze_data_grupo_eight_couple_two():
     print("Calculando alertas grupo 8 pareja 2...")
 
     data = Data.objects.filter(
-        base_time__gte=datetime.now() - timedelta(hours=1))
+        base_time__gte=datetime.now() - timedelta(hours=1),
+        measurement__name="Lux",)
     aggregation = data.annotate(check_value=Avg('avg_value')) \
         .select_related('station', 'measurement') \
         .select_related('station__user', 'station__location') \
@@ -84,6 +85,7 @@ def analyze_data_grupo_eight_couple_two():
         alert = False
 
         variable = item["measurement__name"]
+        value = item["check_value"]
         max_value = item["measurement__max_value"] or 0
         min_value = item["measurement__min_value"] or 0
 
@@ -92,12 +94,13 @@ def analyze_data_grupo_eight_couple_two():
         city = item['station__location__city__name']
         user = item['station__user__username']
 
-        if item["check_value"] > max_value or item["check_value"] < min_value:
+        if value > max_value or value < min_value:
             alert = True
 
         if alert:
-            message = "ALERT {} {} {}".format(variable, min_value, max_value)
+            message = "ALERT TEAM {} {} {}".format(variable, value, min_value, max_value)
             topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
+            print(datetime.now(), "ALERTA EQUIPO" ,message)
             print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
             client.publish(topic, message)
             alerts += 1
@@ -151,7 +154,7 @@ def start_cron():
     '''
     print("Iniciando cron...")
     schedule.every(5).minutes.do(analyze_data)
-    schedule.every(5).minutes.do(analyze_data_grupo_eight_couple_two)
+    schedule.every(5).minutes.do(analyze_data_grupo_eight_couple_two_lux)
     print("Servicio de control iniciado")
     while 1:
         schedule.run_pending()
