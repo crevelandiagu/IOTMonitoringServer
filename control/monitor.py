@@ -67,7 +67,7 @@ def analyze_data_grupo_eight_couple_two_lux():
 
     data = Data.objects.filter(
         base_time__gte=datetime.now() - timedelta(hours=1),
-        measurement__name="Lux",)
+        measurement__name="luminosidad",)
     aggregation = data.annotate(check_value=Avg('avg_value')) \
         .select_related('station', 'measurement') \
         .select_related('station__user', 'station__location') \
