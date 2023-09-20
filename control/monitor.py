@@ -123,14 +123,14 @@ def analyze_data_grupo_eight_couple_two_lux():
 
     print("Calculando alertas grupo 8 pareja 2...")
 
-    measureParam = "temperatura"
+    measureParam = "tluminosidad"
     selectedMeasure = None
     measurements = Measurement.objects.all()
 
     if measureParam != None:
         selectedMeasure = Measurement.objects.filter(name=measureParam)[0]
     elif measurements.count() > 0:
-        selectedMeasure = measurements[0]
+        selectedMeasure = measurements[2]
 
     data = Data.objects.filter(
         base_time__gte=datetime.now() - timedelta(hours=1),
