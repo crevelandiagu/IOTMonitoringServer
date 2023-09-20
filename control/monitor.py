@@ -58,6 +58,64 @@ def analyze_data():
     print(len(aggregation), "dispositivos revisados")
     print(alerts, "alertas enviadas")
 
+def ping():
+    # Consulta todos los datos de la última hora, los agrupa por estación y variable
+    # Compara el promedio con los valores límite que están en la base de datos para esa variable.
+    # Si el promedio se excede de los límites, se envia un mensaje de alerta.
+
+    print("Healt Check...")
+
+    measureParam = "temperatura"
+    selectedMeasure = None
+    measurements = Measurement.objects.all()
+
+    if measureParam != None:
+        selectedMeasure = Measurement.objects.filter(name=measureParam)[0]
+    elif measurements.count() > 0:
+        selectedMeasure = measurements[0]
+
+    data = Data.objects.filter(
+        base_time__gte=datetime.now() - timedelta(hours=1),
+        measurement__name=selectedMeasure.name)
+    aggregation = data.annotate(check_value=Avg('avg_value')) \
+        .select_related('station', 'measurement') \
+        .select_related('station__user', 'station__location') \
+        .select_related('station__location__city', 'station__location__state',
+                        'station__location__country') \
+        .values('check_value', 'station__user__username',
+                'measurement__name',
+                'measurement__max_value',
+                'measurement__min_value',
+                'station__location__city__name',
+                'station__location__state__name',
+                'station__location__country__name')
+    alerts = 0
+    for item in aggregation:
+        alert = False
+
+        variable = item["measurement__name"]
+        value = item["check_value"]
+        max_value = item["measurement__max_value"] or 0
+        min_value = item["measurement__min_value"] or 0
+
+        country = item['station__location__country__name']
+        state = item['station__location__state__name']
+        city = item['station__location__city__name']
+        user = item['station__user__username']
+
+
+        alert = True
+
+        if alert:
+            message = "Healt Check {} {} {}".format(variable, value, min_value, max_value)
+            topic = '{}/{}/{}/{}/in'.format(country, state, city, user)
+            print(datetime.now(), "Healt Check", message)
+            print(datetime.now(), "Sending alert to {} {}".format(topic, variable))
+            client.publish(topic, message)
+            alerts += 1
+
+    print(len(aggregation), "Healt Check grupo 8 pareja 2")
+    print(alerts, "Healt Check al grupo 8 pareja 2")
 def analyze_data_grupo_eight_couple_two_lux():
     # Consulta todos los datos de la última hora, los agrupa por estación y variable
     # Compara el promedio con los valores límite que están en la base de datos para esa variable.
@@ -163,7 +221,9 @@ def start_cron():
     '''
     print("Iniciando cron...")
     schedule.every(5).minutes.do(analyze_data)
-    schedule.every(5).minutes.do(analyze_data_grupo_eight_couple_two_lux)
+    schedule.every(4).minutes.do(ping)
+    schedule.every(1).minutes.do(analyze_data_grupo_eight_couple_two_lux)
+
     print("Servicio de control iniciado")
     while 1:
         schedule.run_pending()
